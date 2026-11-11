@@ -1,75 +1,64 @@
 # Registo de Horas · joaogoncalves.net
 
-App estática (um único `index.html`) para registar as horas da Laura e controlar o pagamento mensal.
-Segue a mesma abordagem do projeto Sociedade Euromilhões: GitHub Pages + JSONBin.io + login front-end.
+App estática para registar as horas da Laura e controlar o pagamento mensal.
+GitHub Pages + JSONBin.io, sem servidor.
+
+**Endereço:** https://joaogoncalves.github.io/registo-horas/
 
 ## Acessos
 
 | Quem | Como entra | O que pode fazer |
 |---|---|---|
-| **Laura** | PIN no teclado numérico | Registar/corrigir horas do mês (até estar pago), deixar observações para o João, registar despesas extra, ler notas e marcar como lidas, ver total a receber |
-| **João / Elsa (admin)** | "Entrar como administrador" + password de cada um | Tudo: valor-hora com histórico, notas, editar/apagar registos, marcar mês como pago, exportar Excel, copiar resumo/WhatsApp, imprimir PDF |
+| **Laura** | PIN no teclado numérico | Registar/corrigir horas do mês (até estar pago), deixar observações para o João e a Elsa, registar despesas extra, ler notas e marcar como lidas, ver total a receber |
+| **João / Elsa** | "Entrar como administrador" + password de cada um | Tudo: valor-hora com histórico, notas, editar/apagar registos, marcar mês como pago, mensagem de WhatsApp para a Laura, exportar Excel, imprimir PDF |
 
-Cada nota, registo manual e pagamento fica com o nome de quem o fez — a Laura vê se a nota veio do João ou da Elsa.
-
+Cada nota, registo manual e pagamento fica com o nome de quem o fez.
 A sessão fica guardada no dispositivo durante 60 dias (`CONFIG.sessaoDias`).
 
-## Configuração (topo do `<script>` em `index.html`)
+## Segurança — sem segredos no código
 
-```js
-const CONFIG = {
-  nomeColaboradora: "Laura",
-  admins: [
-    { nome: "João", password: "mudar-password-joao" },
-    { nome: "Elsa", password: "mudar-password-elsa" }
-  ],
-  pinColaboradora:  "1234",
-  telefoneColaboradora: "351912345678",   // WhatsApp da Laura (opcional)
-  jsonbin: { binId: "", key: "", keyHeader: "X-Access-Key" }
-};
-```
+O `index.html` **não contém** o PIN, as passwords nem a chave do JSONBin.
+Em `CONFIG.acessos` há apenas texto encriptado: o Bin ID e a chave do JSONBin
+encriptados (AES-GCM 256, chave derivada com PBKDF2-SHA256, 150 000 iterações)
+uma vez com o PIN da Laura e uma vez com a password de cada administrador.
+Ao entrar, a app tenta desencriptar com o que foi escrito: se conseguir, liga-se ao JSONBin.
 
-### 1. JSONBin (dados partilhados entre os dois telemóveis)
+Limitação honesta: um PIN de 4 algarismos pode ser descoberto por alguém com
+conhecimentos técnicos que teste as 10 000 combinações. Para dados de horas e
+notas é proteção adequada; usa um PIN de 6 algarismos se quiseres mais margem.
 
-1. Em <https://jsonbin.io> → **Bins** → *Create Bin* com o conteúdo:
-   ```json
-   {"version":1,"rates":[],"registos":[],"pagamentos":{},"notas":[],"updatedAt":null}
-   ```
-   Deixa o bin **privado**. Copia o **Bin ID**.
-2. Em **API Keys → Access Keys** cria uma chave só com permissões de **Bins: Read + Update**.
-   Cola-a em `key` (mantém `keyHeader: "X-Access-Key"`).
-   > Evita usar a X-Master-Key: num repositório público dá acesso a **todos** os teus bins. Se a usares, muda `keyHeader` para `"X-Master-Key"`.
-3. Sem `binId`/`key`, a app funciona em **modo local** (dados só nesse browser) — útil para testar.
+## Mudar PIN, passwords ou chave
 
-### 2. GitHub Pages
+1. Abre `gerar-acessos.html` (no site ou no ficheiro local — funciona offline).
+2. Preenche Bin ID, Access Key, PIN e passwords → **Gerar**.
+3. Substitui a lista `acessos: [ … ]` no `index.html` pelo resultado e faz commit.
+4. Se mudares o número de algarismos do PIN, atualiza `CONFIG.pinDigitos`.
 
-1. Cria um repositório (ex.: `registo-horas`) e envia estes ficheiros.
-2. *Settings → Pages → Deploy from branch → main / root*.
-3. Abre `https://<utilizador>.github.io/registo-horas/`.
+## JSONBin
 
-### 3. Telemóvel da Laura
+- Bin privado com o conteúdo inicial:
+  ```json
+  {"version":1,"rates":[],"registos":[],"despesas":[],"pagamentos":{},"notas":[],"updatedAt":null}
+  ```
+- Access Key só com permissões **Bins: Read + Update**.
 
-Abre o link → *Partilhar → Adicionar ao ecrã principal* (iPhone) ou *⋮ → Instalar app* (Android). Fica com ícone próprio.
+## Instalar no telemóvel
+
+Abre o link → *Partilhar → Adicionar ao ecrã principal* (iPhone) ou *⋮ → Instalar app* (Android).
 
 ## Identidade visual
 
 Extraída do cartão de visita:
 
-- **Cores:** carvão `#231f20`, verde-lima `#87cf32`, branco. Para texto verde sobre fundo branco usa-se `#3f7310`, por legibilidade.
-- **Logótipo:** `logo.svg` (versão para fundo escuro, vetorial, tirada do cartão) e `logo-escuro.svg` (para fundo claro).
-- **Fonte da marca:** FFF Corporate (pixel). Para a usar na web, converte o teu ficheiro da fonte para `fonts/fff-corporate.woff2`. Sem esse ficheiro, a app usa Chakra Petch (Google Fonts) nos títulos e Inter no texto.
-- Todas as cores e fontes estão em variáveis CSS no início do `<style>`.
+- **Cores:** carvão `#231f20`, verde-lima `#87cf32`, branco (`#3f7310` para texto verde sobre branco).
+- **Logótipo:** `logo.svg` (fundo escuro) e `logo-escuro.svg` (fundo claro), vetoriais.
+- **Fonte da marca:** FFF Corporate — coloca `fonts/fff-corporate.woff2` para a ativar; sem ela usa Chakra Petch + Inter.
 
-## Regras importantes
+## Regras
 
-- **Valor-hora com histórico:** cada registo usa o valor em vigor na data do registo. Ao marcar um mês como pago, o valor e as horas ficam congelados nesse pagamento.
-- **Meses pagos ficam bloqueados para a Laura.** O admin pode corrigir (ou "Anular pagamento").
-- **Despesas extra** registadas pela Laura somam-se ao total do mês. As observações e despesas novas aparecem em "Novidades da Laura" até carregares em "Visto ✓".
-- **Mensagem de pagamento:** depois de marcar o mês como pago, o botão "Enviar mensagem à Laura" abre o WhatsApp com o texto pronto (depois envias o comprovativo).
-- **Um registo por dia** (qualquer dia da semana, não só segunda-feira).
-- Notas "para a próxima limpeza" aparecem em destaque até a Laura carregar em **Li ✓**. Se editares uma nota, volta a ficar por ler.
-- Antes de gravar, a app lê sempre a versão mais recente na nuvem, para não apagar alterações feitas no outro telemóvel.
-
-## Segurança
-
-Tal como no Euromilhões, o login é só front-end: o PIN, a password e a chave JSONBin ficam visíveis no código-fonte. Para este uso chega, mas não é proteção a sério.
+- **Valor-hora com histórico:** cada registo usa o valor em vigor na sua data. Por defeito a data é hoje, mas pode ser anterior.
+- **Pagamento:** ao marcar o mês como pago, valor e horas ficam congelados; a Laura deixa de poder alterar esse mês.
+- **Despesas extra** somam-se ao total do mês. Observações e despesas novas aparecem em "Novidades da Laura" até "Visto ✓".
+- **Notas** "para a próxima limpeza" ficam em destaque até a Laura carregar em "Li ✓".
+- Antes de gravar, a app lê sempre a versão mais recente, para não apagar alterações feitas noutro telemóvel.
+- **Modo demo:** se `acessos` estiver vazio, os dados ficam só no browser (PIN `1234`, password `demo`).

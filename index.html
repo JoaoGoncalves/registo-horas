@@ -218,24 +218,45 @@
    ========================================================= */
 const CONFIG = {
   nomeColaboradora: "Laura",
-  // Acessos de administração (cada um com a sua password)
-  admins: [
-    { nome: "João", password: "Laura-Joao" },
-    { nome: "Elsa", password: "Laura-Elsa" }
-  ],
-  pinColaboradora:  "4842",                  // PIN da Laura (só números)
-  telefoneColaboradora: "351961781882",                 // WhatsApp da Laura, ex.: "351912345678" (vazio = escolhes o contacto)
-  diaHabitual:      1,                       // 1 = segunda-feira
+  admins: ["João", "Elsa"],          // nomes de quem administra
+  pinDigitos:       4,               // nº de algarismos do PIN da Laura
+  telefoneColaboradora: "351961781882",  // WhatsApp da Laura (vazio = escolhes o contacto)
+  diaHabitual:      1,               // 1 = segunda-feira
   horasPorDefeito:  4,
-  sessaoDias:       60,                      // dias que o dispositivo fica com sessão iniciada
+  sessaoDias:       60,              // dias que o dispositivo fica com sessão iniciada
+  keyHeader:        "X-Access-Key",  // "X-Master-Key" se usares a Master Key
 
-  /* JSONBin.io — partilha os dados entre o teu telemóvel e o da Laura.
-     Ver README.md. Se ficar vazio, os dados ficam só neste browser. */
-  jsonbin: {
-    binId:     "6af49b3bffd5d16053b9db12",
-    key:       "$2a$10$IKZ9DLS5aMX0dwG.UZIbnO35/QxQU7uLvJtxS1xZyaqxRrvVWfVSS",
-    keyHeader: "X-Access-Key"   // usa "X-Master-Key" se colares a Master Key
-  }
+  /* ACESSOS ENCRIPTADOS
+     Não há passwords nem chaves legíveis neste ficheiro. Cada entrada abaixo
+     guarda o Bin ID e a chave do JSONBin encriptados (AES-GCM + PBKDF2) com
+     o PIN da Laura ou com a password de cada administrador. Só quem souber
+     o PIN/password consegue desencriptar.
+     Para gerar/alterar: abre gerar-acessos.html (funciona offline) e cola aqui
+     o resultado. Se a lista ficar vazia, a app funciona em modo local (demo):
+     PIN 1234, password "demo". */
+  iteracoes: 150000,
+  acessos: [
+      {
+          "role": "laura",
+          "salt": "vj7ky6XCd86+uCr4BVBvAg==",
+          "iv": "TkYyS85K/xZWk/TX",
+          "ct": "KO5OOjiipqO4Q57kjGZ4yba4fAhSKe1Kjle67J+e+JBq9DKPGHSN2cOTUGkG28+UHvWMiBex/5EByjtN3YlxVYQhHSQxg4K2MC2HxdcFcJEx1tBUpbvvwlG56ZuI0Rs6bKOS7M2JCrQbY51TZ523vTZLfDmvBPhezhbI6A=="
+      },
+      {
+          "role": "admin",
+          "nome": "João",
+          "salt": "ORO7lXbLeVZgUCn7OLe4yA==",
+          "iv": "6yfFuIVbJpdDRmd3",
+          "ct": "IU3Fm/QNynBPrsbKg8UkRl/WVI0p7VTY0WZWAEOo6Cw6iO7aJ5Tjws5ZSDxfXi8xDZDgRI+wOUXlS5R5rDwAXaP4qN421c36y8yEeThALN71DPdIvKKx1MXUo/aCYxkRLe5t3XCoPEL3Wtkgm2jRsr1VmX5SVvCyRQ2JgA=="
+      },
+      {
+          "role": "admin",
+          "nome": "Elsa",
+          "salt": "DrY/5oCW0H2E4rQGUnab7w==",
+          "iv": "09EaI2tJR5488hCJ",
+          "ct": "Hatu4KWe0YlHfJM7K8b/bluRQcdjKVceFwJXQrS8itAyhKFdiAL0wjz5xrHIQ7kHiEa6jeq7E/XjdqtrqmTB7s5MMvkXHxJBPQ1/JSZ4l4Z4lWqH75P3H50W2brvPt18eUd5wIx76AL88fS7XFEuOZLS0J3uqxXNUYcqKQ=="
+      }
+  ]
 };
 
 /* =========================================================
@@ -287,11 +308,11 @@ function normalize(s){
 
 const LOCAL_KEY = "registo-horas-state-v1";
 const Store = {
-  mode(){ return (CONFIG.jsonbin.binId && CONFIG.jsonbin.key) ? "cloud" : "local"; },
+  mode(){ return SECRET ? "cloud" : "local"; },
   async load(){
     if(this.mode() === "cloud"){
-      const res = await fetch("https://api.jsonbin.io/v3/b/"+CONFIG.jsonbin.binId+"/latest", {
-        headers: { [CONFIG.jsonbin.keyHeader]: CONFIG.jsonbin.key, "X-Bin-Meta": "false" },
+      const res = await fetch("https://api.jsonbin.io/v3/b/"+SECRET.binId+"/latest", {
+        headers: { [CONFIG.keyHeader]: SECRET.key, "X-Bin-Meta": "false" },
         cache: "no-store"
       });
       if(!res.ok) throw new Error("Leitura falhou ("+res.status+")");
@@ -302,9 +323,9 @@ const Store = {
   },
   async save(state){
     if(this.mode() === "cloud"){
-      const res = await fetch("https://api.jsonbin.io/v3/b/"+CONFIG.jsonbin.binId, {
+      const res = await fetch("https://api.jsonbin.io/v3/b/"+SECRET.binId, {
         method: "PUT",
-        headers: { "Content-Type":"application/json", [CONFIG.jsonbin.keyHeader]: CONFIG.jsonbin.key },
+        headers: { "Content-Type":"application/json", [CONFIG.keyHeader]: SECRET.key },
         body: JSON.stringify(state)
       });
       if(!res.ok) throw new Error("Gravação falhou ("+res.status+")");
@@ -382,7 +403,32 @@ function notasPorTipo(s, tipo){
 const SESSION_KEY = "registo-horas-sessao";
 let ROLE = null;  // "admin" | "laura"
 let ADMIN_NOME = null;  // "João" | "Elsa"
-const nomesAdmins = () => CONFIG.admins.map(a => a.nome).join(" e ");
+const nomesAdmins = () => CONFIG.admins.join(" e ");
+let SECRET = null;   // { binId, key } — só existe depois de entrar
+const MODO_DEMO = !CONFIG.acessos.length;
+
+/* ---------- desencriptação (Web Crypto) ---------- */
+const b64 = str => Uint8Array.from(atob(str), c => c.charCodeAt(0));
+async function tryDecrypt(secret, entry){
+  try{
+    const enc = new TextEncoder();
+    const base = await crypto.subtle.importKey("raw", enc.encode(secret), "PBKDF2", false, ["deriveKey"]);
+    const key = await crypto.subtle.deriveKey(
+      { name:"PBKDF2", salt: b64(entry.salt), iterations: CONFIG.iteracoes, hash:"SHA-256" },
+      base, { name:"AES-GCM", length:256 }, false, ["decrypt"]);
+    const pt = await crypto.subtle.decrypt({ name:"AES-GCM", iv: b64(entry.iv) }, key, b64(entry.ct));
+    return JSON.parse(new TextDecoder().decode(pt));
+  }catch(e){ return null; }
+}
+/* devolve as entradas que este segredo abre */
+async function unlock(secret, roles){
+  const found = [];
+  for(const e of CONFIG.acessos.filter(a => roles.includes(a.role))){
+    const data = await tryDecrypt(secret, e);
+    if(data) found.push({ entry: e, data });
+  }
+  return found;
+}
 const ui = {
   loginMode: "pin", pin: "", loginError: "",
   mes: monthOf(today()),
@@ -397,35 +443,57 @@ const ui = {
 function loadSession(){
   try{
     const s = JSON.parse(localStorage.getItem(SESSION_KEY));
-    if(s && s.exp > Date.now() && s.role === "laura") return s.role;
-    if(s && s.exp > Date.now() && s.role === "admin" && CONFIG.admins.some(a => a.nome === s.nome)){ ADMIN_NOME = s.nome; return s.role; }
+    if(!s || !(s.exp > Date.now())) return null;
+    if(!MODO_DEMO && !(s.secret && s.secret.binId && s.secret.key)) return null;
+    SECRET = MODO_DEMO ? null : s.secret;
+    if(s.role === "laura") return s.role;
+    if(s.role === "admin" && CONFIG.admins.includes(s.nome)){ ADMIN_NOME = s.nome; return s.role; }
   }catch(e){}
   return null;
 }
 function saveSession(role){
-  try{ localStorage.setItem(SESSION_KEY, JSON.stringify({ role, nome: ADMIN_NOME, exp: Date.now() + CONFIG.sessaoDias*864e5 })); }catch(e){}
+  try{ localStorage.setItem(SESSION_KEY, JSON.stringify({ role, nome: ADMIN_NOME, secret: SECRET, exp: Date.now() + CONFIG.sessaoDias*864e5 })); }catch(e){}
 }
 function logout(){
   try{ localStorage.removeItem(SESSION_KEY); }catch(e){}
-  ROLE = null; ADMIN_NOME = null; ui.pin = ""; ui.loginError = ""; ui.loginMode = "pin";
+  ROLE = null; ADMIN_NOME = null; SECRET = null; STATE = emptyState(); ui.pin = ""; ui.loginError = ""; ui.loginMode = "pin";
   render();
 }
 async function enter(role){
   ROLE = role; saveSession(role);
   await refresh();
 }
-function tryPin(){
-  if(ui.pin === CONFIG.pinColaboradora){ enter("laura"); return; }
-  ui.loginError = "PIN errado. Tenta outra vez."; ui.pin = "";
+let checking = false;
+function loginFail(msg){
+  ui.loginError = msg; ui.pin = ""; checking = false;
   render(); const c = document.querySelector(".login-card"); if(c) c.classList.add("shake");
 }
-function tryPassword(){
+async function tryPin(){
+  if(checking) return;
+  if(MODO_DEMO){ if(ui.pin === "1234"){ enter("laura"); } else loginFail("PIN errado. Tenta outra vez."); return; }
+  checking = true; ui.loginError = "A verificar…"; render();
+  const r = await unlock(ui.pin, ["laura"]);
+  checking = false;
+  if(r.length){ SECRET = r[0].data; ui.loginError = ""; enter("laura"); return; }
+  loginFail("PIN errado. Tenta outra vez.");
+}
+async function tryPassword(){
+  if(checking) return;
   const v = (document.getElementById("pw")||{}).value || "";
-  const matches = CONFIG.admins.filter(a => a.password === v);
-  if(matches.length === 1){ ADMIN_NOME = matches[0].nome; enter("admin"); return; }
-  if(matches.length > 1){ ui.who = matches.map(a => a.nome); ui.loginMode = "who"; ui.loginError = ""; render(); return; }
-  if(v === CONFIG.pinColaboradora){ enter("laura"); return; }
-  ui.loginError = "Password incorreta."; render();
+  if(!v) return;
+  if(MODO_DEMO){
+    if(v === "demo"){ ui.who = CONFIG.admins; ui.loginMode = "who"; ui.loginError = ""; render(); }
+    else loginFail("Password incorreta.");
+    return;
+  }
+  checking = true; ui.loginError = "A verificar…"; render();
+  const r = await unlock(v, ["admin","laura"]);
+  checking = false;
+  const admins = r.filter(x => x.entry.role === "admin");
+  if(admins.length === 1){ SECRET = admins[0].data; ADMIN_NOME = admins[0].entry.nome; ui.loginError = ""; enter("admin"); return; }
+  if(admins.length > 1){ SECRET = admins[0].data; ui.who = admins.map(x => x.entry.nome); ui.loginMode = "who"; ui.loginError = ""; render(); return; }
+  if(r.length){ SECRET = r[0].data; ui.loginError = ""; enter("laura"); return; }
+  loginFail("Password incorreta.");
 }
 
 /* =========================================================
@@ -445,7 +513,7 @@ function render(){
 }
 
 function renderLogin(){
-  const n = CONFIG.pinColaboradora.length;
+  const n = CONFIG.pinDigitos;
   const dots = Array.from({length:n}, (_,i)=> `<span class="${i < ui.pin.length ? "on":""}"></span>`).join("");
   const inner = ui.loginMode === "who" ? `
       <h1>Quem és?</h1>
@@ -486,8 +554,8 @@ function bindLogin(){
     const k = b.dataset.k; ui.loginError = "";
     if(k === "clear") ui.pin = "";
     else if(k === "back") ui.pin = ui.pin.slice(0,-1);
-    else if(ui.pin.length < CONFIG.pinColaboradora.length) ui.pin += k;
-    if(ui.pin.length === CONFIG.pinColaboradora.length){ tryPin(); return; }
+    else if(ui.pin.length < CONFIG.pinDigitos) ui.pin += k;
+    if(ui.pin.length === CONFIG.pinDigitos){ tryPin(); return; }
     render();
   }));
   document.querySelectorAll("[data-mode]").forEach(b => b.addEventListener("click", () => {
@@ -505,9 +573,9 @@ function bindLogin(){
 }
 document.addEventListener("keydown", e => {
   if(ROLE || ui.loginMode !== "pin") return;
-  if(/^[0-9]$/.test(e.key) && ui.pin.length < CONFIG.pinColaboradora.length){
+  if(/^[0-9]$/.test(e.key) && ui.pin.length < CONFIG.pinDigitos){
     ui.pin += e.key; ui.loginError = "";
-    if(ui.pin.length === CONFIG.pinColaboradora.length) tryPin(); else render();
+    if(ui.pin.length === CONFIG.pinDigitos) tryPin(); else render();
   } else if(e.key === "Backspace"){ ui.pin = ui.pin.slice(0,-1); render(); }
 });
 

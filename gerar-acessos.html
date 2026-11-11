@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gerar acessos · Registo de Horas</title>
+<meta name="robots" content="noindex">
+<style>
+  body{ font-family: system-ui, sans-serif; background:#231f20; color:#231f20; margin:0; padding:24px; }
+  .card{ max-width:640px; margin:0 auto; background:#fff; border-radius:16px; padding:24px; }
+  h1{ margin:0 0 6px; font-size:1.3rem; }
+  p{ color:#6e6a6b; font-size:.9rem; line-height:1.5; }
+  label{ display:block; font-size:.8rem; color:#6e6a6b; margin:14px 0 4px; font-weight:600; }
+  input, textarea{ width:100%; box-sizing:border-box; padding:10px 12px; border:1px solid #e3e2df; border-radius:10px; font:inherit; }
+  textarea{ font-family: ui-monospace, monospace; font-size:.78rem; min-height:220px; }
+  .row{ display:flex; gap:10px; } .row > div{ flex:1; }
+  button{ margin-top:18px; padding:12px 18px; border:none; border-radius:10px; background:#87cf32; color:#231f20; font-weight:700; font-size:.95rem; cursor:pointer; }
+  .warn{ background:#f8e8e0; border-radius:10px; padding:10px 12px; font-size:.85rem; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>Gerar acessos encriptados</h1>
+  <p>Tudo acontece neste browser — nada é enviado para lado nenhum. No fim, copia o resultado e substitui a lista <code>acessos: [ … ]</code> no <code>index.html</code>.</p>
+  <p class="warn">Fecha esta página depois de usares. Não guardes as passwords em lado nenhum do repositório.</p>
+
+  <label>Bin ID (JSONBin)</label><input id="bin">
+  <label>Access Key (JSONBin)</label><input id="key">
+  <label>PIN da Laura (só algarismos)</label><input id="pin" inputmode="numeric">
+  <div class="row">
+    <div><label>Nome admin 1</label><input id="n1" value="João"></div>
+    <div><label>Password admin 1</label><input id="p1" type="password"></div>
+  </div>
+  <div class="row">
+    <div><label>Nome admin 2</label><input id="n2" value="Elsa"></div>
+    <div><label>Password admin 2</label><input id="p2" type="password"></div>
+  </div>
+  <button id="go">Gerar</button>
+
+  <label>Resultado (cola no index.html em <code>acessos:</code>)</label>
+  <textarea id="out" readonly></textarea>
+</div>
+<script>
+const ITER = 150000; // tem de ser igual a CONFIG.iteracoes
+const b64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
+async function encryptFor(secret, payload){
+  const enc = new TextEncoder();
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const base = await crypto.subtle.importKey("raw", enc.encode(secret), "PBKDF2", false, ["deriveKey"]);
+  const key = await crypto.subtle.deriveKey({ name:"PBKDF2", salt, iterations: ITER, hash:"SHA-256" },
+    base, { name:"AES-GCM", length:256 }, false, ["encrypt"]);
+  const ct = await crypto.subtle.encrypt({ name:"AES-GCM", iv }, key, enc.encode(payload));
+  return { salt: b64(salt), iv: b64(iv), ct: b64(ct) };
+}
+document.getElementById("go").addEventListener("click", async () => {
+  const v = id => document.getElementById(id).value.trim();
+  if(!v("bin") || !v("key") || !/^\d{4,8}$/.test(v("pin")) || !v("p1")){
+    alert("Preenche Bin ID, Access Key, PIN (4 a 8 algarismos) e pelo menos a password do admin 1."); return;
+  }
+  const payload = JSON.stringify({ binId: v("bin"), key: v("key") });
+  const out = [];
+  out.push({ role:"laura", ...(await encryptFor(v("pin"), payload)) });
+  if(v("p1")) out.push({ role:"admin", nome: v("n1"), ...(await encryptFor(v("p1"), payload)) });
+  if(v("p2")) out.push({ role:"admin", nome: v("n2"), ...(await encryptFor(v("p2"), payload)) });
+  document.getElementById("out").value = JSON.stringify(out, null, 2);
+  ["key","pin","p1","p2"].forEach(id => document.getElementById(id).value = "");
+});
+</script>
+</body>
+</html>
