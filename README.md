@@ -9,7 +9,7 @@ GitHub Pages + JSONBin.io, sem servidor.
 
 | Quem | Como entra | O que pode fazer |
 |---|---|---|
-| **Laura** | PIN no teclado numérico | Registar/corrigir horas do mês (até estar pago), deixar observações para o João e a Elsa, registar despesas extra, ler notas e marcar como lidas, ver total a receber |
+| **Laura** | PIN no teclado numérico | Registar/corrigir horas do mês (até estar pago), deixar observações para o João e a Elsa, enviar mensagens soltas, registar despesas extra, ler notas e marcar como lidas, ver total a receber |
 | **João / Elsa** | "Entrar como administrador" + password de cada um | Tudo: valor-hora com histórico, notas, editar/apagar registos, marcar mês como pago, mensagem de WhatsApp para a Laura, exportar Excel, imprimir PDF |
 
 Cada nota, registo manual e pagamento fica com o nome de quem o fez.
@@ -58,7 +58,8 @@ Extraída do cartão de visita:
 
 - **Valor-hora com histórico:** cada registo usa o valor em vigor na sua data. Por defeito a data é hoje, mas pode ser anterior.
 - **Pagamento:** ao marcar o mês como pago, valor e horas ficam congelados; a Laura deixa de poder alterar esse mês.
-- **Despesas extra** somam-se ao total do mês. Observações e despesas novas aparecem em "Novidades da Laura" até "Visto ✓".
+- **Despesas extra** somam-se ao total do mês.
+- **Novidades da Laura:** observações, despesas e mensagens novas aparecem no topo da vista de administração até "Visto ✓". A Laura vê se a mensagem já foi vista e por quem.
 - **Notas** "para a próxima limpeza" ficam em destaque até a Laura carregar em "Li ✓".
 - Antes de gravar, a app lê sempre a versão mais recente, para não apagar alterações feitas noutro telemóvel.
 - **Modo demo:** se `acessos` estiver vazio, os dados ficam só no browser (PIN `1234`, password `demo`).

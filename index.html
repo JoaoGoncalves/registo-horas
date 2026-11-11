@@ -290,7 +290,7 @@ function nextWeekday(dow){
    DADOS
    ========================================================= */
 function emptyState(){
-  return { version:1, rates:[], registos:[], despesas:[], pagamentos:{}, notas:[], updatedAt:null };
+  return { version:1, rates:[], registos:[], despesas:[], mensagens:[], pagamentos:{}, notas:[], updatedAt:null };
 }
 function normalize(s){
   const e = emptyState();
@@ -300,6 +300,7 @@ function normalize(s){
     rates:      Array.isArray(s.rates) ? s.rates : [],
     registos:   Array.isArray(s.registos) ? s.registos : [],
     despesas:   Array.isArray(s.despesas) ? s.despesas : [],
+    mensagens:  Array.isArray(s.mensagens) ? s.mensagens : [],
     pagamentos: (s.pagamentos && typeof s.pagamentos === "object") ? s.pagamentos : {},
     notas:      Array.isArray(s.notas) ? s.notas : [],
     updatedAt:  s.updatedAt || null
@@ -437,7 +438,8 @@ const ui = {
   editNotaId: null,
   rateForm: null,
   showDespesa: false,
-  despesa: { descricao: "", valor: "", data: today() }
+  despesa: { descricao: "", valor: "", data: today() },
+  msg: ""
 };
 
 function loadSession(){
@@ -666,6 +668,23 @@ function renderLaura(){
     </section>
 
     <section class="panel">
+      <h2>✉️ Mensagem para ${esc(nomesAdmins())}</h2>
+      <div class="field">
+        <textarea id="m-txt" rows="3" placeholder="Ex.: Na próxima segunda não posso ir. / O aspirador avariou.">${esc(ui.msg)}</textarea>
+      </div>
+      <button class="btn btn-primary btn-block" data-act="msg-enviar">Enviar mensagem</button>
+      ${(() => { const ms = [...STATE.mensagens].sort((a,b)=> b.criadaEm.localeCompare(a.criadaEm)).slice(0,5); return ms.length ? `
+        <ul class="list" style="margin-top:10px;">
+          ${ms.map(m => `
+            <li>
+              <div class="grow"><div class="note-text">${esc(m.texto)}</div>
+                <div class="meta">${fmtDate(m.criadaEm.slice(0,10))} · ${m.vista ? `<span class="pill ok">Vista${m.vistaPor ? " por "+esc(m.vistaPor) : ""}</span>` : `<span class="pill neutral">Enviada</span>`}</div>
+              </div>
+            </li>`).join("")}
+        </ul>` : ""; })()}
+    </section>
+
+    <section class="panel">
       <h2>🧾 Despesa extra <span class="hint">algo que pagaste do teu bolso</span></h2>
       ${ui.showDespesa ? `
         <div class="field"><label class="f" for="d-desc">O que foi?</label><input type="text" id="d-desc" placeholder="Ex.: sacos do aspirador" value="${esc(ui.despesa.descricao)}"></div>
@@ -732,7 +751,8 @@ function renderAdmin(){
   const rf = ui.rateForm || { valor: rate ?? "", desde: today() };
   const novidades = [
     ...STATE.registos.filter(x => x.obs && !x.obsVista).map(x => ({ tipo:"obs", id:x.id, data:x.data, texto:x.obs })),
-    ...STATE.despesas.filter(d => !d.vista).map(d => ({ tipo:"despesa", id:d.id, data:d.data, texto:d.descricao, valor:d.valor }))
+    ...STATE.despesas.filter(d => !d.vista).map(d => ({ tipo:"despesa", id:d.id, data:d.data, texto:d.descricao, valor:d.valor })),
+    ...STATE.mensagens.filter(m => !m.vista).map(m => ({ tipo:"msg", id:m.id, data:m.criadaEm.slice(0,10), texto:m.texto }))
   ].sort((a,b)=> b.data.localeCompare(a.data));
   const prox = notasPorTipo(STATE, "proxima");
   const gerais = notasPorTipo(STATE, "geral");
@@ -771,7 +791,7 @@ function renderAdmin(){
         ${novidades.map(n => `
           <li>
             <div class="grow">
-              ${n.tipo === "despesa" ? `🧾 <strong>Despesa: ${fmtEur(n.valor)}</strong> — ` : "📝 "}<span class="note-text">${esc(n.texto)}</span>
+              ${n.tipo === "despesa" ? `🧾 <strong>Despesa: ${fmtEur(n.valor)}</strong> — ` : n.tipo === "msg" ? "✉️ <strong>Mensagem:</strong> " : "📝 "}<span class="note-text">${esc(n.texto)}</span>
               <div class="meta">${dowOf(n.data)}, ${fmtDate(n.data)}</div>
             </div>
             <button class="btn btn-outline btn-sm" data-act="visto" data-tipo="${n.tipo}" data-id="${n.id}">Visto ✓</button>
@@ -879,6 +899,14 @@ function renderAdmin(){
         ${prox.length ? `<ul class="list">${prox.map(notaItem).join("")}</ul>` : `<div class="empty">Sem notas.</div>`}
         <h3 style="font-size:.9rem;margin:20px 0 4px;">Indicações gerais</h3>
         ${gerais.length ? `<ul class="list">${gerais.map(notaItem).join("")}</ul>` : `<div class="empty">Sem indicações.</div>`}
+        <h3 style="font-size:.9rem;margin:20px 0 4px;">Mensagens da ${esc(CONFIG.nomeColaboradora)}</h3>
+        ${STATE.mensagens.length ? `<ul class="list">${[...STATE.mensagens].sort((a,b)=> b.criadaEm.localeCompare(a.criadaEm)).slice(0,15).map(m => `
+          <li>
+            <div class="grow"><div class="note-text">${esc(m.texto)}</div>
+              <div class="meta">${fmtDate(m.criadaEm.slice(0,10))} · ${m.vista ? `<span class="pill ok">Vista${m.vistaPor ? " por "+esc(m.vistaPor) : ""}</span>` : `<span class="pill warn">Por ver</span>`}</div>
+            </div>
+            <button class="icon-btn" data-act="msg-apagar" data-id="${m.id}" title="Apagar">🗑</button>
+          </li>`).join("")}</ul>` : `<div class="empty">Sem mensagens.</div>`}
       </section>
 
       <div>
@@ -1016,11 +1044,26 @@ document.addEventListener("click", async e => {
       break;
     }
 
+    case "msg-enviar": {
+      const texto = (ui.msg || "").trim();
+      if(!texto){ toast("Escreve a mensagem.", true); return; }
+      const ok = await mutate(s => { s.mensagens.push({ id: uid(), texto, criadaEm: new Date().toISOString(), vista: false }); }, "Mensagem enviada 🙂");
+      if(ok){ ui.msg = ""; render(); }
+      break;
+    }
+    case "msg-apagar": {
+      if(!confirm("Apagar esta mensagem?")) return;
+      const id = el.dataset.id;
+      await mutate(s => { s.mensagens = s.mensagens.filter(m => m.id !== id); }, "Mensagem apagada.");
+      break;
+    }
+
     /* --- Admin --- */
     case "visto": {
       const { tipo, id } = el.dataset;
       await mutate(s => {
         if(tipo === "obs"){ const x = s.registos.find(r => r.id === id); if(x) x.obsVista = true; }
+        else if(tipo === "msg"){ const x = s.mensagens.find(r => r.id === id); if(x){ x.vista = true; x.vistaPor = ADMIN_NOME; x.vistaEm = new Date().toISOString(); } }
         else { const x = s.despesas.find(r => r.id === id); if(x) x.vista = true; }
       });
       break;
@@ -1123,6 +1166,7 @@ document.addEventListener("input", e => {
   const id = e.target.id;
   if(id === "l-obs" && ui.form) ui.form.obs = e.target.value;
   if(id === "d-desc") ui.despesa.descricao = e.target.value;
+  if(id === "m-txt") ui.msg = e.target.value;
   if(id === "d-valor") ui.despesa.valor = e.target.value;
   if(id === "d-data") ui.despesa.data = e.target.value;
   if(id === "r-valor" || id === "r-desde"){
