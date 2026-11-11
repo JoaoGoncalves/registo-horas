@@ -1,0 +1,1137 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Registo de Horas · joaogoncalves.net</title>
+<meta name="theme-color" content="#231f20">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Horas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  /* =========================================================
+     IDENTIDADE VISUAL — joaogoncalves.net
+     Troca aqui as cores e fontes pelos valores exatos da marca.
+     ========================================================= */
+  @font-face{
+    font-family:"FFF Corporate";
+    src: local("FFF Corporate"), url("fonts/fff-corporate.woff2") format("woff2");
+    font-display: swap;
+  }
+  :root{
+    --charcoal:     #231f20;   /* fundo do cartão */
+    --lime:         #87cf32;   /* verde .net */
+    --brand:        #87cf32;   /* botões / destaques (texto escuro por cima) */
+    --brand-dark:   #3f7310;   /* verde para texto sobre branco */
+    --brand-soft:   #eef7e2;
+    --ink:          #231f20;   /* texto principal */
+    --muted:        #6e6a6b;
+    --bg:           #f4f4f2;
+    --surface:      #ffffff;
+    --line:         #e3e2df;
+    --warn:         #b5552f;
+    --warn-soft:    #f8e8e0;
+    --ok:           #3f7a3a;
+    --ok-soft:      #e3f0df;
+    --font-display: 'Chakra Petch', system-ui, sans-serif;
+    --font-pixel:   'FFF Corporate', 'Chakra Petch', system-ui, sans-serif;
+    --font-body:    'Inter', system-ui, sans-serif;
+    --font-mono:    'JetBrains Mono', ui-monospace, monospace;
+    --radius: 14px;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background:var(--bg); color:var(--ink); font-family:var(--font-body);
+    min-height:100vh; -webkit-font-smoothing:antialiased; line-height:1.45;
+  }
+  h1,h2,h3{ font-family:var(--font-display); margin:0; letter-spacing:-.01em; }
+  .mono{ font-family:var(--font-mono); }
+  button{ font-family:inherit; }
+  ::selection{ background:var(--lime); color:var(--charcoal); }
+  :focus-visible{ outline:3px solid var(--brand); outline-offset:2px; }
+
+  /* ---------- MARCA ---------- */
+  .brand{ display:inline-flex; align-items:center; gap:8px; text-decoration:none; color:var(--ink); }
+  .brand img{ height:40px; width:auto; display:block; }
+  .login-wrap .brand img{ height:64px; }
+  .wordmark{ font-family:var(--font-display); font-weight:700; font-size:1.02rem; }
+  .wordmark b{ color:var(--lime); }
+  .tagline{ font-family:var(--font-pixel); font-size:.78rem; letter-spacing:.06em; text-transform:uppercase; color:var(--lime); }
+
+  /* ---------- LOGIN ---------- */
+  #app{ max-width:960px; margin:0 auto; padding:16px 16px 60px; }
+  body.dark{ background:var(--charcoal); }
+  .login-wrap{ min-height:calc(100vh - 40px); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:22px; }
+  .login-card{
+    width:100%; max-width:360px; background:var(--surface); border:1px solid var(--line);
+    border-radius:20px; padding:28px 24px; text-align:center; box-shadow:0 10px 30px -18px rgba(40,50,10,.35);
+  }
+  .login-card h1{ font-size:1.35rem; margin-bottom:4px; }
+  .login-card p{ color:var(--muted); font-size:.9rem; margin:0 0 18px; }
+  .pin-dots{ display:flex; justify-content:center; gap:14px; margin:6px 0 20px; }
+  .pin-dots span{ width:16px; height:16px; border-radius:3px; border:2px solid var(--charcoal); }
+  .pin-dots span.on{ background:var(--lime); border-color:var(--lime); }
+  .keypad{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+  .keypad button{
+    height:62px; border-radius:14px; border:1px solid var(--line); background:var(--bg);
+    font-size:1.5rem; font-family:var(--font-display); font-weight:500; color:var(--ink); cursor:pointer;
+  }
+  .keypad button:active{ background:var(--lime); }
+  .keypad .ghost{ background:transparent; border-color:transparent; font-size:1rem; color:var(--muted); }
+  .login-error{ color:var(--warn); font-size:.88rem; min-height:1.3em; margin-top:12px; }
+  .link-btn{ background:none; border:none; color:var(--muted); font-size:.82rem; text-decoration:underline; cursor:pointer; margin-top:14px; }
+  .shake{ animation:shake .35s; }
+  @keyframes shake{ 20%,60%{transform:translateX(-8px)} 40%,80%{transform:translateX(8px)} }
+
+  /* ---------- LAYOUT ---------- */
+  .topbar{ display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:18px;
+    background:var(--charcoal); border-radius:var(--radius); padding:12px 14px; }
+  .topbar .btn-outline{ background:transparent; color:#fff; border-color:#4a4546; }
+  .topbar .btn-outline:hover{ color:var(--lime); border-color:var(--lime); }
+  .topbar .badge{ background:transparent; color:var(--lime); border:1px solid var(--lime); font-family:var(--font-pixel); text-transform:uppercase; letter-spacing:.05em; }
+  .topbar-right{ display:flex; align-items:center; gap:8px; }
+  .badge{ font-size:.72rem; padding:5px 10px; border-radius:20px; background:var(--brand-soft); color:var(--brand-dark); font-weight:600; }
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:11px 16px; border-radius:10px;
+    border:1px solid transparent; font-weight:600; font-size:.9rem; cursor:pointer; text-decoration:none; line-height:1.1;
+  }
+  .btn:disabled{ opacity:.5; cursor:not-allowed; }
+  .btn-primary{ background:var(--lime); color:var(--charcoal); }
+  .btn-primary:hover:not(:disabled){ background:#76bb26; }
+  .btn-outline{ background:var(--surface); border-color:var(--line); color:var(--ink); }
+  .btn-outline:hover:not(:disabled){ border-color:var(--brand); color:var(--brand-dark); }
+  .btn-danger{ background:transparent; border-color:var(--warn); color:var(--warn); }
+  .btn-sm{ padding:6px 10px; font-size:.78rem; border-radius:8px; }
+  .btn-block{ width:100%; }
+  .btn-big{ padding:16px; font-size:1.05rem; border-radius:14px; }
+  .icon-btn{ background:none; border:none; cursor:pointer; padding:6px; border-radius:8px; color:var(--muted); font-size:.95rem; }
+  .icon-btn:hover{ background:var(--brand-soft); color:var(--ink); }
+
+  .hello{ margin:4px 0 18px; }
+  .hello h1{ font-size:1.6rem; }
+  .hello p{ margin:4px 0 0; color:var(--muted); }
+
+  section{ margin-bottom:18px; }
+  .panel{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:18px; }
+  .panel > h2, section > h2{ font-size:1.05rem; margin-bottom:12px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .hint{ font-family:var(--font-body); font-weight:400; font-size:.78rem; color:var(--muted); }
+  .grid-2{ display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+
+  .cards{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:18px; }
+  .card{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:14px 16px; }
+  .card .label{ font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin-bottom:4px; }
+  .card .value{ font-family:var(--font-display); font-size:1.45rem; font-weight:700; }
+  .card .sub{ font-size:.75rem; color:var(--muted); margin-top:2px; }
+  .card.accent{ background:var(--charcoal); border-color:var(--charcoal); color:#fff; }
+  .card.accent .value{ color:var(--lime); }
+  .card.accent .label, .card.accent .sub{ color:rgba(255,255,255,.72); }
+
+  /* ---------- FORMULÁRIOS ---------- */
+  label.f{ display:block; font-size:.78rem; color:var(--muted); margin-bottom:5px; font-weight:500; }
+  input[type=date], input[type=number], input[type=text], input[type=password], select, textarea{
+    width:100%; padding:11px 12px; border-radius:10px; border:1px solid var(--line); background:var(--surface);
+    color:var(--ink); font-size:1rem; font-family:var(--font-body);
+  }
+  textarea{ min-height:84px; resize:vertical; }
+  .field{ margin-bottom:14px; }
+  .row{ display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; }
+  .row > .field{ flex:1; min-width:130px; }
+  .dow{ font-size:.82rem; color:var(--brand-dark); margin-top:5px; font-weight:500; }
+
+  .stepper{ display:flex; align-items:center; justify-content:space-between; gap:10px; background:var(--bg); border:1px solid var(--line); border-radius:14px; padding:8px; }
+  .stepper button{
+    width:58px; font-weight:700; height:58px; border-radius:12px; border:none; background:var(--surface); font-size:1.7rem;
+    color:var(--brand-dark); cursor:pointer; box-shadow:0 1px 0 var(--line); font-family:var(--font-display);
+  }
+  .stepper button:active{ background:var(--brand-soft); }
+  .stepper .val{ font-family:var(--font-display); font-size:2.1rem; font-weight:700; }
+  .stepper .val small{ font-size:1rem; color:var(--muted); font-weight:500; }
+
+  /* ---------- LISTAS / TABELAS ---------- */
+  .list{ list-style:none; margin:0; padding:0; }
+  .list li{ display:flex; gap:12px; align-items:flex-start; padding:12px 0; border-bottom:1px dashed var(--line); }
+  .list li:last-child{ border-bottom:none; }
+  .list .grow{ flex:1; min-width:0; }
+  .list .meta{ font-size:.74rem; color:var(--muted); margin-top:3px; }
+  .note-text{ white-space:pre-wrap; word-wrap:break-word; }
+  .note-new{ background:var(--warn-soft); border-radius:12px; padding:12px !important; border-bottom:none !important; margin-bottom:8px; }
+  .empty{ color:var(--muted); font-size:.88rem; padding:6px 0; }
+
+  .table-scroll{ overflow-x:auto; }
+  table{ border-collapse:collapse; width:100%; font-size:.88rem; }
+  th, td{ padding:9px 8px; text-align:left; white-space:nowrap; border-bottom:1px solid var(--line); }
+  th{ font-size:.7rem; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); font-weight:500; }
+  td.num, th.num{ text-align:right; font-family:var(--font-mono); }
+  td.wrap{ white-space:normal; min-width:140px; color:var(--muted); font-size:.82rem; }
+  tfoot td{ font-weight:700; border-bottom:none; }
+
+  .pill{ display:inline-block; font-size:.72rem; font-weight:700; padding:4px 10px; border-radius:20px; }
+  .pill.ok{ background:var(--ok-soft); color:var(--ok); }
+  .pill.warn{ background:var(--warn-soft); color:var(--warn); }
+  .pill.neutral{ background:var(--bg); color:var(--muted); border:1px solid var(--line); }
+
+  .month-nav{ display:flex; align-items:center; gap:8px; margin-bottom:14px; }
+  .month-nav h2{ font-size:1.25rem; min-width:170px; text-align:center; }
+
+  .callout{ background:var(--brand-soft); border-radius:12px; padding:12px 14px; font-size:.88rem; margin-bottom:14px; }
+  .callout.warn{ background:var(--warn-soft); }
+
+  footer{ text-align:center; color:var(--muted); font-size:.74rem; margin-top:28px; line-height:1.6; }
+
+  .toast{
+    position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:var(--ink); color:#fff;
+    padding:12px 18px; border-radius:12px; font-size:.9rem; z-index:20; box-shadow:0 8px 24px rgba(0,0,0,.25);
+    max-width:calc(100% - 32px);
+  }
+  .toast.err{ background:var(--warn); }
+  .busy{ position:fixed; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg,transparent,var(--lime),transparent); background-size:200% 100%; animation:busy 1s linear infinite; z-index:30; }
+  @keyframes busy{ from{background-position:200% 0} to{background-position:-200% 0} }
+  .loading{ text-align:center; padding:80px 20px; color:var(--muted); }
+
+  @media (max-width:760px){
+    .cards{ grid-template-columns:repeat(2,1fr); }
+    .grid-2{ grid-template-columns:1fr; }
+    .month-nav h2{ min-width:0; flex:1; }
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration:.001ms !important; transition-duration:.001ms !important; }
+  }
+  @media print{
+    .no-print, .topbar-right, footer{ display:none !important; }
+    body{ background:#fff; }
+  }
+</style>
+</head>
+<body>
+<div id="app"><div class="loading">A carregar…</div></div>
+<div id="busy" class="busy" hidden></div>
+
+<script>
+/* =========================================================
+   CONFIGURAÇÃO — muda isto antes de publicares
+   ========================================================= */
+const CONFIG = {
+  nomeColaboradora: "Laura",
+  // Acessos de administração (cada um com a sua password)
+  admins: [
+    { nome: "João", password: "Laura-Joao" },
+    { nome: "Elsa", password: "Laura-Elsa" }
+  ],
+  pinColaboradora:  "4842",                  // PIN da Laura (só números)
+  telefoneColaboradora: "351961781882",                 // WhatsApp da Laura, ex.: "351912345678" (vazio = escolhes o contacto)
+  diaHabitual:      1,                       // 1 = segunda-feira
+  horasPorDefeito:  4,
+  sessaoDias:       60,                      // dias que o dispositivo fica com sessão iniciada
+
+  /* JSONBin.io — partilha os dados entre o teu telemóvel e o da Laura.
+     Ver README.md. Se ficar vazio, os dados ficam só neste browser. */
+  jsonbin: {
+    binId:     "6af49b3bffd5d16053b9db12",
+    key:       "$2a$10$IKZ9DLS5aMX0dwG.UZIbnO35/QxQU7uLvJtxS1xZyaqxRrvVWfVSS",
+    keyHeader: "X-Access-Key"   // usa "X-Master-Key" se colares a Master Key
+  }
+};
+
+/* =========================================================
+   UTILITÁRIOS
+   ========================================================= */
+const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+const DIAS  = ["Domingo","Segunda-feira","Terça-feira","Quarta-feira","Quinta-feira","Sexta-feira","Sábado"];
+
+const pad = n => String(n).padStart(2,"0");
+const isoDate = d => d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const today = () => isoDate(new Date());
+const monthOf = iso => iso.slice(0,7);
+const parseIso = iso => { const [y,m,d] = iso.split("-").map(Number); return new Date(y, m-1, d); };
+const dowOf = iso => DIAS[parseIso(iso).getDay()];
+const fmtDate = iso => iso === "2000-01-01" ? "o início" : iso ? iso.slice(8,10)+"/"+iso.slice(5,7)+"/"+iso.slice(0,4) : "—";
+const fmtDateShort = iso => iso ? iso.slice(8,10)+"/"+iso.slice(5,7) : "—";
+const monthLabel = key => { const [y,m] = key.split("-").map(Number); return MESES[m-1]+" "+y; };
+const shiftMonth = (key, delta) => { const [y,m] = key.split("-").map(Number); const d = new Date(y, m-1+delta, 1); return d.getFullYear()+"-"+pad(d.getMonth()+1); };
+const fmtEur = v => (Number(v)||0).toLocaleString("pt-PT",{style:"currency",currency:"EUR"});
+const fmtH = h => (Number(h)||0).toLocaleString("pt-PT",{maximumFractionDigits:2})+" h";
+const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const round2 = n => Math.round(n*100)/100;
+
+function nextWeekday(dow){
+  const d = new Date(); const diff = (dow - d.getDay() + 7) % 7;
+  d.setDate(d.getDate() + diff); return isoDate(d);
+}
+
+/* =========================================================
+   DADOS
+   ========================================================= */
+function emptyState(){
+  return { version:1, rates:[], registos:[], despesas:[], pagamentos:{}, notas:[], updatedAt:null };
+}
+function normalize(s){
+  const e = emptyState();
+  if(!s || typeof s !== "object") return e;
+  return {
+    version: 1,
+    rates:      Array.isArray(s.rates) ? s.rates : [],
+    registos:   Array.isArray(s.registos) ? s.registos : [],
+    despesas:   Array.isArray(s.despesas) ? s.despesas : [],
+    pagamentos: (s.pagamentos && typeof s.pagamentos === "object") ? s.pagamentos : {},
+    notas:      Array.isArray(s.notas) ? s.notas : [],
+    updatedAt:  s.updatedAt || null
+  };
+}
+
+const LOCAL_KEY = "registo-horas-state-v1";
+const Store = {
+  mode(){ return (CONFIG.jsonbin.binId && CONFIG.jsonbin.key) ? "cloud" : "local"; },
+  async load(){
+    if(this.mode() === "cloud"){
+      const res = await fetch("https://api.jsonbin.io/v3/b/"+CONFIG.jsonbin.binId+"/latest", {
+        headers: { [CONFIG.jsonbin.keyHeader]: CONFIG.jsonbin.key, "X-Bin-Meta": "false" },
+        cache: "no-store"
+      });
+      if(!res.ok) throw new Error("Leitura falhou ("+res.status+")");
+      return normalize(await res.json());
+    }
+    try{ return normalize(JSON.parse(localStorage.getItem(LOCAL_KEY))); }
+    catch(e){ return emptyState(); }
+  },
+  async save(state){
+    if(this.mode() === "cloud"){
+      const res = await fetch("https://api.jsonbin.io/v3/b/"+CONFIG.jsonbin.binId, {
+        method: "PUT",
+        headers: { "Content-Type":"application/json", [CONFIG.jsonbin.keyHeader]: CONFIG.jsonbin.key },
+        body: JSON.stringify(state)
+      });
+      if(!res.ok) throw new Error("Gravação falhou ("+res.status+")");
+      return;
+    }
+    localStorage.setItem(LOCAL_KEY, JSON.stringify(state));
+  }
+};
+
+let STATE = emptyState();
+
+/* Lê sempre a versão mais recente antes de gravar, para não apagar
+   alterações feitas entretanto no outro telemóvel. */
+async function mutate(fn, okMsg){
+  setBusy(true);
+  try{
+    const fresh = await Store.load();
+    const result = fn(fresh);
+    if(result === false){ return false; }
+    fresh.updatedAt = new Date().toISOString();
+    await Store.save(fresh);
+    STATE = fresh;
+    if(okMsg) toast(okMsg);
+    return true;
+  }catch(e){
+    console.error(e);
+    toast("Não foi possível guardar. Verifica a ligação à internet e tenta outra vez.", true);
+    return false;
+  }finally{
+    setBusy(false);
+    render();
+  }
+}
+
+/* ---------- regras de negócio ---------- */
+function sortedRates(s){ return [...s.rates].sort((a,b)=> a.desde.localeCompare(b.desde)); }
+function rateFor(s, iso){
+  const r = sortedRates(s); if(!r.length) return null;
+  let cur = r[0].valor;
+  for(const x of r){ if(x.desde <= iso) cur = x.valor; else break; }
+  return Number(cur);
+}
+function currentRate(s){ return rateFor(s, today()); }
+function registosDoMes(s, key){
+  return s.registos.filter(r => monthOf(r.data) === key).sort((a,b)=> a.data.localeCompare(b.data));
+}
+function resumoMes(s, key){
+  const regs = registosDoMes(s, key);
+  let horas = 0, valor = 0, semValor = false;
+  regs.forEach(r => {
+    const rate = rateFor(s, r.data);
+    horas += Number(r.horas)||0;
+    if(rate == null) semValor = true; else valor += (Number(r.horas)||0) * rate;
+  });
+  const despesas = s.despesas.filter(d => monthOf(d.data) === key).sort((a,b)=> a.data.localeCompare(b.data));
+  const totalDespesas = round2(despesas.reduce((a,d)=> a + (Number(d.valor)||0), 0));
+  const pag = s.pagamentos[key] || null;
+  return { regs, horas: round2(horas), valorHoras: round2(valor), despesas, totalDespesas,
+           valor: round2(valor + totalDespesas), semValor, pago: !!(pag && pag.pago), pagamento: pag };
+}
+function mesesComDados(s){
+  const set = new Set(s.registos.map(r => monthOf(r.data)));
+  s.despesas.forEach(d => set.add(monthOf(d.data)));
+  Object.keys(s.pagamentos).forEach(k => set.add(k));
+  set.add(monthOf(today()));
+  return [...set].sort().reverse();
+}
+function notasPorTipo(s, tipo){
+  return s.notas.filter(n => n.tipo === tipo).sort((a,b)=> b.criadaEm.localeCompare(a.criadaEm));
+}
+
+/* =========================================================
+   SESSÃO / LOGIN (front-end, como no projeto Euromilhões)
+   ========================================================= */
+const SESSION_KEY = "registo-horas-sessao";
+let ROLE = null;  // "admin" | "laura"
+let ADMIN_NOME = null;  // "João" | "Elsa"
+const nomesAdmins = () => CONFIG.admins.map(a => a.nome).join(" e ");
+const ui = {
+  loginMode: "pin", pin: "", loginError: "",
+  mes: monthOf(today()),
+  form: null,          // formulário de registo da Laura
+  adminForm: null,     // formulário de registo do admin
+  editNotaId: null,
+  rateForm: null,
+  showDespesa: false,
+  despesa: { descricao: "", valor: "", data: today() }
+};
+
+function loadSession(){
+  try{
+    const s = JSON.parse(localStorage.getItem(SESSION_KEY));
+    if(s && s.exp > Date.now() && s.role === "laura") return s.role;
+    if(s && s.exp > Date.now() && s.role === "admin" && CONFIG.admins.some(a => a.nome === s.nome)){ ADMIN_NOME = s.nome; return s.role; }
+  }catch(e){}
+  return null;
+}
+function saveSession(role){
+  try{ localStorage.setItem(SESSION_KEY, JSON.stringify({ role, nome: ADMIN_NOME, exp: Date.now() + CONFIG.sessaoDias*864e5 })); }catch(e){}
+}
+function logout(){
+  try{ localStorage.removeItem(SESSION_KEY); }catch(e){}
+  ROLE = null; ADMIN_NOME = null; ui.pin = ""; ui.loginError = ""; ui.loginMode = "pin";
+  render();
+}
+async function enter(role){
+  ROLE = role; saveSession(role);
+  await refresh();
+}
+function tryPin(){
+  if(ui.pin === CONFIG.pinColaboradora){ enter("laura"); return; }
+  ui.loginError = "PIN errado. Tenta outra vez."; ui.pin = "";
+  render(); const c = document.querySelector(".login-card"); if(c) c.classList.add("shake");
+}
+function tryPassword(){
+  const v = (document.getElementById("pw")||{}).value || "";
+  const matches = CONFIG.admins.filter(a => a.password === v);
+  if(matches.length === 1){ ADMIN_NOME = matches[0].nome; enter("admin"); return; }
+  if(matches.length > 1){ ui.who = matches.map(a => a.nome); ui.loginMode = "who"; ui.loginError = ""; render(); return; }
+  if(v === CONFIG.pinColaboradora){ enter("laura"); return; }
+  ui.loginError = "Password incorreta."; render();
+}
+
+/* =========================================================
+   RENDER
+   ========================================================= */
+const BRAND_HTML = `
+  <span class="brand">
+    <img src="logo.svg" alt="joaogoncalves.net" onerror="this.remove(); document.querySelectorAll('.wordmark').forEach(w=>w.hidden=false)">
+    <span class="wordmark" hidden style="color:#fff">joaogoncalves<b>.net</b></span>
+  </span>`;
+
+function render(){
+  const app = document.getElementById("app");
+  document.body.classList.toggle("dark", !ROLE);
+  if(!ROLE){ app.innerHTML = renderLogin(); bindLogin(); return; }
+  app.innerHTML = ROLE === "admin" ? renderAdmin() : renderLaura();
+}
+
+function renderLogin(){
+  const n = CONFIG.pinColaboradora.length;
+  const dots = Array.from({length:n}, (_,i)=> `<span class="${i < ui.pin.length ? "on":""}"></span>`).join("");
+  const inner = ui.loginMode === "who" ? `
+      <h1>Quem és?</h1>
+      <p>Para as notas ficarem com o teu nome.</p>
+      <div style="display:grid;gap:10px;">
+        ${(ui.who||[]).map(n => `<button class="btn btn-primary btn-big btn-block" data-who="${esc(n)}">${esc(n)}</button>`).join("")}
+      </div>
+      <button class="link-btn" data-mode="pin">Voltar</button>
+    ` : ui.loginMode === "pin" ? `
+      <h1>Olá, ${esc(CONFIG.nomeColaboradora)}</h1>
+      <p>Introduz o teu PIN para registar as horas.</p>
+      <div class="pin-dots" aria-label="PIN">${dots}</div>
+      <div class="keypad">
+        ${[1,2,3,4,5,6,7,8,9].map(k=>`<button data-k="${k}">${k}</button>`).join("")}
+        <button class="ghost" data-k="clear">Limpar</button>
+        <button data-k="0">0</button>
+        <button class="ghost" data-k="back" aria-label="Apagar">⌫</button>
+      </div>
+      <div class="login-error">${esc(ui.loginError)}</div>
+      <button class="link-btn" data-mode="pw">Entrar como administrador</button>
+    ` : `
+      <h1>Administração</h1>
+      <p>Acesso reservado.</p>
+      <div class="field"><input type="password" id="pw" placeholder="Password" autocomplete="current-password"></div>
+      <button class="btn btn-primary btn-block" id="pw-btn">Entrar</button>
+      <div class="login-error">${esc(ui.loginError)}</div>
+      <button class="link-btn" data-mode="pin">Voltar ao PIN</button>
+    `;
+  return `
+    <div class="login-wrap">
+      ${BRAND_HTML}
+      <div class="login-card">${inner}</div>
+      <div class="tagline">Making the complicated simple</div>
+    </div>`;
+}
+function bindLogin(){
+  document.querySelectorAll(".keypad button").forEach(b => b.addEventListener("click", () => {
+    const k = b.dataset.k; ui.loginError = "";
+    if(k === "clear") ui.pin = "";
+    else if(k === "back") ui.pin = ui.pin.slice(0,-1);
+    else if(ui.pin.length < CONFIG.pinColaboradora.length) ui.pin += k;
+    if(ui.pin.length === CONFIG.pinColaboradora.length){ tryPin(); return; }
+    render();
+  }));
+  document.querySelectorAll("[data-mode]").forEach(b => b.addEventListener("click", () => {
+    ui.loginMode = b.dataset.mode; ui.loginError = ""; ui.pin = ""; render();
+    const pw = document.getElementById("pw"); if(pw) pw.focus();
+  }));
+  document.querySelectorAll("[data-who]").forEach(b => b.addEventListener("click", () => {
+    ADMIN_NOME = b.dataset.who; enter("admin");
+  }));
+  const pw = document.getElementById("pw");
+  if(pw){
+    pw.addEventListener("keydown", e => { if(e.key === "Enter") tryPassword(); });
+    document.getElementById("pw-btn").addEventListener("click", tryPassword);
+  }
+}
+document.addEventListener("keydown", e => {
+  if(ROLE || ui.loginMode !== "pin") return;
+  if(/^[0-9]$/.test(e.key) && ui.pin.length < CONFIG.pinColaboradora.length){
+    ui.pin += e.key; ui.loginError = "";
+    if(ui.pin.length === CONFIG.pinColaboradora.length) tryPin(); else render();
+  } else if(e.key === "Backspace"){ ui.pin = ui.pin.slice(0,-1); render(); }
+});
+
+function topbar(label){
+  return `
+    <div class="topbar">
+      ${BRAND_HTML}
+      <div class="topbar-right">
+        <span class="badge">${esc(label)}</span>
+        <button class="btn btn-outline btn-sm" data-act="refresh" title="Atualizar dados">↻</button>
+        <button class="btn btn-outline btn-sm" data-act="logout">Sair</button>
+      </div>
+    </div>`;
+}
+function footer(){
+  const upd = STATE.updatedAt ? "Última atualização: "+new Date(STATE.updatedAt).toLocaleString("pt-PT") : "Ainda sem dados guardados.";
+  const modo = Store.mode() === "cloud"
+    ? "Dados guardados na nuvem e partilhados entre os dois acessos."
+    : "⚠️ Modo local: os dados ficam só neste browser. Configura o JSONBin (ver README) para partilhar entre telemóveis.";
+  return `<footer>${upd}<br>${modo}<br><span class="tagline" style="color:var(--brand-dark)">Making the complicated simple</span> · joaogoncalves.net</footer>`;
+}
+
+/* ---------- VISTA DA LAURA ---------- */
+function laudaDefaultForm(){
+  const regs = [...STATE.registos].sort((a,b)=> b.data.localeCompare(a.data));
+  return { data: today(), horas: regs.length ? Number(regs[0].horas) : CONFIG.horasPorDefeito, obs: "" };
+}
+function syncFormWithDate(f){
+  const ex = STATE.registos.find(r => r.data === f.data);
+  if(ex){ f.horas = Number(ex.horas); f.obs = ex.obs || ""; f.existente = ex.id; }
+  else { f.existente = null; }
+  return f;
+}
+function renderLaura(){
+  if(!ui.form) ui.form = syncFormWithDate(laudaDefaultForm());
+  const f = ui.form;
+  const mesAtual = monthOf(today());
+  const r = resumoMes(STATE, mesAtual);
+  const bloqueado = !!(STATE.pagamentos[monthOf(f.data)] && STATE.pagamentos[monthOf(f.data)].pago);
+  const prox = notasPorTipo(STATE, "proxima");
+  const porLer = prox.filter(n => !n.lida);
+  const lidas = prox.filter(n => n.lida).slice(0,5);
+  const gerais = notasPorTipo(STATE, "geral");
+  const rate = currentRate(STATE);
+
+  return `
+    ${topbar(CONFIG.nomeColaboradora)}
+    <div class="hello">
+      <h1>Olá, ${esc(CONFIG.nomeColaboradora)} 👋</h1>
+      <p>${dowOf(today())}, ${fmtDate(today())}</p>
+    </div>
+
+    ${porLer.length ? `
+    <section class="panel">
+      <h2>📌 Para hoje <span class="hint">${porLer.length} ${porLer.length===1?"nota nova":"notas novas"}</span></h2>
+      <ul class="list">
+        ${porLer.map(n => `
+          <li class="note-new">
+            <div class="grow"><div class="note-text">${esc(n.texto)}</div><div class="meta">${n.autor ? esc(n.autor)+" · " : ""}${fmtDate(n.criadaEm.slice(0,10))}</div></div>
+            <button class="btn btn-primary btn-sm" data-act="ler" data-id="${n.id}">Li ✓</button>
+          </li>`).join("")}
+      </ul>
+    </section>` : ""}
+
+    <section class="panel">
+      <h2>${f.existente ? "Corrigir registo" : "Registar horas"}</h2>
+      <div class="field">
+        <label class="f" for="l-data">Dia</label>
+        <input type="date" id="l-data" value="${f.data}" max="${today()}">
+        <div class="dow">${dowOf(f.data)}${f.existente ? " · já tem registo, podes corrigir" : ""}</div>
+      </div>
+      <div class="field">
+        <label class="f">Horas</label>
+        <div class="stepper">
+          <button data-act="horas" data-d="-0.5" aria-label="Menos meia hora" ${bloqueado?"disabled":""}>−</button>
+          <div class="val">${(f.horas).toLocaleString("pt-PT")}<small> h</small></div>
+          <button data-act="horas" data-d="0.5" aria-label="Mais meia hora" ${bloqueado?"disabled":""}>+</button>
+        </div>
+      </div>
+      <div class="field">
+        <label class="f" for="l-obs">Observações para ${esc(nomesAdmins())} <span class="hint">(opcional)</span></label>
+        <textarea id="l-obs" rows="2" placeholder="Ex.: falta detergente da loiça, a máquina fez um barulho…">${esc(f.obs)}</textarea>
+      </div>
+      ${bloqueado ? `<div class="callout warn">Este mês já foi pago e não pode ser alterado. Fala com ${esc(nomesAdmins())} se for preciso corrigir.</div>` : ""}
+      <button class="btn btn-primary btn-block btn-big" data-act="guardar-laura" ${bloqueado || f.horas <= 0 ? "disabled":""}>
+        ${f.existente ? "Guardar correção" : "Guardar "+fmtH(f.horas)}
+      </button>
+    </section>
+
+    <section class="panel">
+      <h2>🧾 Despesa extra <span class="hint">algo que pagaste do teu bolso</span></h2>
+      ${ui.showDespesa ? `
+        <div class="field"><label class="f" for="d-desc">O que foi?</label><input type="text" id="d-desc" placeholder="Ex.: sacos do aspirador" value="${esc(ui.despesa.descricao)}"></div>
+        <div class="row">
+          <div class="field" style="max-width:150px"><label class="f" for="d-valor">Valor (€)</label><input type="number" id="d-valor" min="0" step="0.01" inputmode="decimal" value="${esc(ui.despesa.valor)}"></div>
+          <div class="field"><label class="f" for="d-data">Dia</label><input type="date" id="d-data" max="${today()}" value="${ui.despesa.data}"></div>
+        </div>
+        <div class="row">
+          <button class="btn btn-primary" data-act="despesa-add">Guardar despesa</button>
+          <button class="btn btn-outline" data-act="despesa-toggle">Cancelar</button>
+        </div>
+        <p class="hint" style="margin:10px 0 0;">${esc(nomesAdmins())} confirmam e o valor é somado ao pagamento do mês.</p>
+      ` : `<button class="btn btn-outline btn-block" data-act="despesa-toggle">+ Registar despesa</button>`}
+    </section>
+
+    <section class="panel">
+      <h2>${monthLabel(mesAtual)} ${r.pago ? `<span class="pill ok">Pago ${fmtDateShort(r.pagamento.data)}</span>` : `<span class="pill neutral">A pagar no fim do mês</span>`}</h2>
+      <div class="cards" style="grid-template-columns:1fr 1fr; margin-bottom:12px;">
+        <div class="card"><div class="label">Horas</div><div class="value">${fmtH(r.horas)}</div><div class="sub">${r.regs.length} ${r.regs.length===1?"dia":"dias"}</div></div>
+        <div class="card accent"><div class="label">A receber</div><div class="value">${r.semValor && !r.valor ? "—" : fmtEur(r.pago ? r.pagamento.valor : r.valor)}</div><div class="sub">${rate != null ? fmtEur(rate)+" / hora" : "valor-hora por definir"}${r.totalDespesas ? " + "+fmtEur(r.totalDespesas)+" despesas" : ""}</div></div>
+      </div>
+      ${r.regs.length ? `
+        <ul class="list">
+          ${r.regs.map(x => `
+            <li>
+              <div class="grow"><strong>${dowOf(x.data)}</strong>, ${fmtDate(x.data)}${x.obs ? `<div class="meta">${esc(x.obs)}</div>`:""}</div>
+              <div class="mono">${fmtH(x.horas)}</div>
+              ${r.pago ? "" : `<button class="icon-btn" data-act="editar-laura" data-data="${x.data}" title="Corrigir">✎</button>`}
+            </li>`).join("")}
+        </ul>` : `<div class="empty">Ainda não há registos este mês.</div>`}
+      ${r.despesas.length ? `
+        <h3 style="font-size:.9rem;margin:16px 0 2px;">Despesas extra</h3>
+        <ul class="list">
+          ${r.despesas.map(d => `
+            <li>
+              <div class="grow">${esc(d.descricao)}<div class="meta">${fmtDate(d.data)}</div></div>
+              <div class="mono">${fmtEur(d.valor)}</div>
+              ${r.pago || d.criadoPor !== "laura" ? "" : `<button class="icon-btn" data-act="despesa-del" data-id="${d.id}" title="Apagar">🗑</button>`}
+            </li>`).join("")}
+        </ul>` : ""}
+    </section>
+
+    <section class="panel">
+      <h2>📖 Indicações gerais</h2>
+      ${gerais.length ? `<ul class="list">${gerais.map(n => `<li><div class="grow"><div class="note-text">${esc(n.texto)}</div>${n.autor ? `<div class="meta">${esc(n.autor)}</div>` : ""}</div></li>`).join("")}</ul>`
+                      : `<div class="empty">Sem indicações por agora.</div>`}
+    </section>
+
+    ${lidas.length ? `
+    <section class="panel">
+      <h2>Notas anteriores <span class="hint">já lidas</span></h2>
+      <ul class="list">${lidas.map(n => `<li><div class="grow"><div class="note-text">${esc(n.texto)}</div><div class="meta">Lida a ${fmtDate((n.lidaEm||"").slice(0,10))}</div></div></li>`).join("")}</ul>
+    </section>` : ""}
+
+    ${footer()}`;
+}
+
+/* ---------- VISTA ADMIN ---------- */
+function renderAdmin(){
+  const key = ui.mes;
+  const r = resumoMes(STATE, key);
+  const rate = currentRate(STATE);
+  const af = ui.adminForm || { data: key === monthOf(today()) ? today() : key+"-01", horas: CONFIG.horasPorDefeito, obs: "", id: null };
+  const rf = ui.rateForm || { valor: rate ?? "", desde: today() };
+  const novidades = [
+    ...STATE.registos.filter(x => x.obs && !x.obsVista).map(x => ({ tipo:"obs", id:x.id, data:x.data, texto:x.obs })),
+    ...STATE.despesas.filter(d => !d.vista).map(d => ({ tipo:"despesa", id:d.id, data:d.data, texto:d.descricao, valor:d.valor }))
+  ].sort((a,b)=> b.data.localeCompare(a.data));
+  const prox = notasPorTipo(STATE, "proxima");
+  const gerais = notasPorTipo(STATE, "geral");
+  const meses = mesesComDados(STATE);
+  const totalPendente = meses.reduce((acc,k)=> { const x = resumoMes(STATE,k); return acc + (x.pago ? 0 : x.valor); }, 0);
+  const porLer = prox.filter(n=>!n.lida).length;
+
+  const notaItem = n => ui.editNotaId === n.id ? `
+      <li>
+        <div class="grow">
+          <textarea id="edit-nota-txt" rows="3">${esc(n.texto)}</textarea>
+          <div class="row" style="margin-top:8px;">
+            <button class="btn btn-primary btn-sm" data-act="nota-guardar" data-id="${n.id}">Guardar</button>
+            <button class="btn btn-outline btn-sm" data-act="nota-cancelar">Cancelar</button>
+          </div>
+        </div>
+      </li>` : `
+      <li>
+        <div class="grow">
+          <div class="note-text">${esc(n.texto)}</div>
+          <div class="meta">${n.autor ? esc(n.autor)+" · " : ""}${fmtDate(n.criadaEm.slice(0,10))}${n.tipo==="proxima" ? (n.lida ? ` · <span class="pill ok">Lida ${fmtDateShort((n.lidaEm||"").slice(0,10))}</span>` : ` · <span class="pill warn">Por ler</span>`) : ""}</div>
+        </div>
+        <button class="icon-btn" data-act="nota-editar" data-id="${n.id}" title="Editar">✎</button>
+        <button class="icon-btn" data-act="nota-apagar" data-id="${n.id}" title="Apagar">🗑</button>
+      </li>`;
+
+  return `
+    ${topbar(ADMIN_NOME || "Administração")}
+
+    ${rate == null ? `<div class="callout warn"><strong>Começa por definir o valor-hora</strong> na secção "Valor-hora" mais abaixo.</div>` : ""}
+
+    ${novidades.length ? `
+    <section class="panel no-print" style="border-color:var(--warn);">
+      <h2>💬 Novidades da ${esc(CONFIG.nomeColaboradora)} <span class="pill warn">${novidades.length}</span></h2>
+      <ul class="list">
+        ${novidades.map(n => `
+          <li>
+            <div class="grow">
+              ${n.tipo === "despesa" ? `🧾 <strong>Despesa: ${fmtEur(n.valor)}</strong> — ` : "📝 "}<span class="note-text">${esc(n.texto)}</span>
+              <div class="meta">${dowOf(n.data)}, ${fmtDate(n.data)}</div>
+            </div>
+            <button class="btn btn-outline btn-sm" data-act="visto" data-tipo="${n.tipo}" data-id="${n.id}">Visto ✓</button>
+          </li>`).join("")}
+      </ul>
+    </section>` : ""}
+
+    <div class="month-nav">
+      <button class="btn btn-outline btn-sm" data-act="mes" data-d="-1" aria-label="Mês anterior">‹</button>
+      <h2>${monthLabel(key)}</h2>
+      <button class="btn btn-outline btn-sm" data-act="mes" data-d="1" aria-label="Mês seguinte" ${key >= monthOf(today()) ? "disabled":""}>›</button>
+    </div>
+
+    <div class="cards">
+      <div class="card"><div class="label">Horas no mês</div><div class="value">${fmtH(r.horas)}</div><div class="sub">${r.regs.length} ${r.regs.length===1?"dia":"dias"}</div></div>
+      <div class="card accent"><div class="label">${r.pago ? "Pago" : "A pagar"}</div><div class="value">${fmtEur(r.pago ? r.pagamento.valor : r.valor)}</div><div class="sub">${r.pago ? "em "+fmtDate(r.pagamento.data)+(r.pagamento.por ? " por "+esc(r.pagamento.por) : "") : (r.totalDespesas ? fmtEur(r.valorHoras)+" horas + "+fmtEur(r.totalDespesas)+" despesas" : "fim de "+monthLabel(key).split(" ")[0].toLowerCase())}</div></div>
+      <div class="card"><div class="label">Valor-hora atual</div><div class="value">${rate != null ? fmtEur(rate) : "—"}</div><div class="sub">desde ${rate != null ? fmtDate(sortedRates(STATE).filter(x=>x.desde<=today()).slice(-1)[0]?.desde || sortedRates(STATE)[0].desde) : "—"}</div></div>
+      <div class="card"><div class="label">Total por pagar</div><div class="value">${fmtEur(totalPendente)}</div><div class="sub">todos os meses</div></div>
+    </div>
+
+    <section class="panel">
+      <h2>Registos de ${monthLabel(key)}
+        ${r.pago ? `<span class="pill ok">Pago ${fmtDate(r.pagamento.data)}</span>` : `<span class="pill warn">Por pagar</span>`}
+      </h2>
+      ${r.regs.length ? `
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Data</th><th>Dia</th><th class="num">Horas</th><th class="num">€/h</th><th class="num">Valor</th><th>Observações</th><th></th></tr></thead>
+          <tbody>
+            ${r.regs.map(x => { const rt = rateFor(STATE, x.data); return `
+              <tr>
+                <td class="mono">${fmtDate(x.data)}</td>
+                <td>${dowOf(x.data).replace("-feira","")}</td>
+                <td class="num">${fmtH(x.horas)}</td>
+                <td class="num">${rt != null ? fmtEur(rt) : "—"}</td>
+                <td class="num">${rt != null ? fmtEur(rt * x.horas) : "—"}</td>
+                <td class="wrap">${esc(x.obs || "")}</td>
+                <td style="text-align:right">
+                  <button class="icon-btn" data-act="reg-editar" data-id="${x.id}" title="Editar">✎</button>
+                  <button class="icon-btn" data-act="reg-apagar" data-id="${x.id}" title="Apagar">🗑</button>
+                </td>
+              </tr>`; }).join("")}
+          </tbody>
+          <tfoot><tr><td colspan="2">Total horas</td><td class="num">${fmtH(r.horas)}</td><td></td><td class="num">${fmtEur(r.valorHoras)}</td><td colspan="2"></td></tr></tfoot>
+        </table>
+      </div>` : `<div class="empty">Sem registos neste mês.</div>`}
+
+      ${r.despesas.length ? `
+      <h3 style="font-size:.9rem;margin:18px 0 4px;">Despesas extra</h3>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Data</th><th>Descrição</th><th class="num">Valor</th><th></th></tr></thead>
+          <tbody>
+            ${r.despesas.map(d => `
+              <tr>
+                <td class="mono">${fmtDate(d.data)}</td>
+                <td class="wrap" style="color:var(--ink)">${esc(d.descricao)}</td>
+                <td class="num">${fmtEur(d.valor)}</td>
+                <td style="text-align:right"><button class="icon-btn" data-act="despesa-del" data-id="${d.id}" title="Apagar">🗑</button></td>
+              </tr>`).join("")}
+          </tbody>
+          <tfoot><tr><td colspan="2">Total despesas</td><td class="num">${fmtEur(r.totalDespesas)}</td><td></td></tr></tfoot>
+        </table>
+      </div>` : ""}
+      ${r.despesas.length || r.regs.length ? `<div class="callout" style="margin:14px 0 0;"><strong>Total do mês: ${fmtEur(r.pago ? r.pagamento.valor : r.valor)}</strong>${r.totalDespesas ? ` <span class="hint">(${fmtEur(r.valorHoras)} horas + ${fmtEur(r.totalDespesas)} despesas)</span>` : ""}</div>` : ""}
+
+      <div class="row" style="margin-top:14px;">
+        ${r.pago
+          ? `<button class="btn btn-outline" data-act="desmarcar-pago">Anular pagamento</button>`
+          : `<button class="btn btn-primary" data-act="marcar-pago" ${(r.regs.length || r.despesas.length) && !r.semValor ? "" : "disabled"}>Marcar ${fmtEur(r.valor)} como pago</button>`}
+        ${r.pago ? `<a class="btn btn-primary" href="${waLink(textoPagamento(key))}" target="_blank" rel="noopener">💬 Enviar mensagem à ${esc(CONFIG.nomeColaboradora)}</a>` : ""}
+        <button class="btn btn-outline" data-act="copiar-resumo">Copiar resumo</button>
+        ${r.pago ? "" : `<a class="btn btn-outline" href="${waLink(textoResumo(key))}" target="_blank" rel="noopener">WhatsApp</a>`}
+        <button class="btn btn-outline" data-act="imprimir">PDF / Imprimir</button>
+      </div>
+    </section>
+
+    <section class="panel no-print">
+      <h2>${af.id ? "Editar registo" : "Adicionar registo"} <span class="hint">por ti, se a ${esc(CONFIG.nomeColaboradora)} se esquecer</span></h2>
+      <div class="row">
+        <div class="field"><label class="f" for="a-data">Dia</label><input type="date" id="a-data" value="${af.data}" max="${today()}"></div>
+        <div class="field" style="max-width:140px"><label class="f" for="a-horas">Horas</label><input type="number" id="a-horas" min="0.5" step="0.5" value="${af.horas}"></div>
+        <div class="field" style="flex:2"><label class="f" for="a-obs">Observações</label><input type="text" id="a-obs" value="${esc(af.obs)}"></div>
+      </div>
+      <div class="row">
+        <button class="btn btn-primary" data-act="reg-guardar">${af.id ? "Guardar alterações" : "Adicionar"}</button>
+        ${af.id ? `<button class="btn btn-outline" data-act="reg-cancelar">Cancelar</button>` : ""}
+      </div>
+    </section>
+
+    <div class="grid-2">
+      <section class="panel no-print">
+        <h2>Notas para a ${esc(CONFIG.nomeColaboradora)} ${porLer ? `<span class="pill warn">${porLer} por ler</span>`:""}</h2>
+        <div class="field">
+          <label class="f" for="n-tipo">Tipo</label>
+          <select id="n-tipo">
+            <option value="proxima">Para a próxima limpeza</option>
+            <option value="geral">Indicação geral (fica fixa)</option>
+          </select>
+        </div>
+        <div class="field"><label class="f" for="n-txt">Texto</label><textarea id="n-txt" rows="3" placeholder="Ex.: Esta semana, limpar os vidros da varanda."></textarea></div>
+        <button class="btn btn-primary" data-act="nota-add">Adicionar nota</button>
+
+        <h3 style="font-size:.9rem;margin:20px 0 4px;">Para a próxima limpeza</h3>
+        ${prox.length ? `<ul class="list">${prox.map(notaItem).join("")}</ul>` : `<div class="empty">Sem notas.</div>`}
+        <h3 style="font-size:.9rem;margin:20px 0 4px;">Indicações gerais</h3>
+        ${gerais.length ? `<ul class="list">${gerais.map(notaItem).join("")}</ul>` : `<div class="empty">Sem indicações.</div>`}
+      </section>
+
+      <div>
+        <section class="panel no-print">
+          <h2>Valor-hora</h2>
+          <p class="hint" style="margin:-6px 0 12px;">Aplica-se aos registos a partir da data indicada (por defeito hoje; podes escolher uma data anterior se te esqueceres de atualizar). Meses já pagos não mudam.</p>
+          <div class="row">
+            <div class="field" style="max-width:130px"><label class="f" for="r-valor">€ / hora</label><input type="number" id="r-valor" min="0" step="0.5" value="${rf.valor}"></div>
+            <div class="field"><label class="f" for="r-desde">A partir de</label><input type="date" id="r-desde" value="${rf.desde}"></div>
+          </div>
+          <button class="btn btn-primary" data-act="rate-add">${rate == null ? "Definir valor" : "Atualizar valor"}</button>
+          ${STATE.rates.length ? `
+          <ul class="list" style="margin-top:12px;">
+            ${sortedRates(STATE).reverse().map(x => `
+              <li><div class="grow"><strong>${fmtEur(x.valor)}</strong> / hora<div class="meta">desde ${fmtDate(x.desde)}</div></div>
+              ${STATE.rates.length > 1 ? `<button class="icon-btn" data-act="rate-del" data-desde="${x.desde}" title="Apagar">🗑</button>` : ""}</li>`).join("")}
+          </ul>` : ""}
+        </section>
+
+        <section class="panel">
+          <h2>Histórico</h2>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Mês</th><th class="num">Horas</th><th class="num">Valor</th><th>Estado</th></tr></thead>
+              <tbody>
+                ${meses.map(k => { const x = resumoMes(STATE,k); return `
+                  <tr style="cursor:pointer" data-act="ir-mes" data-mes="${k}">
+                    <td>${monthLabel(k)}</td><td class="num">${fmtH(x.horas)}</td>
+                    <td class="num">${fmtEur(x.pago ? x.pagamento.valor : x.valor)}</td>
+                    <td>${x.pago ? `<span class="pill ok">Pago</span>` : (x.regs.length ? `<span class="pill warn">Por pagar</span>` : `<span class="pill neutral">—</span>`)}</td>
+                  </tr>`; }).join("")}
+              </tbody>
+            </table>
+          </div>
+          <div class="row" style="margin-top:12px;">
+            <button class="btn btn-outline" data-act="excel">Exportar Excel</button>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    ${footer()}`;
+}
+
+function waLink(txt){
+  const tel = String(CONFIG.telefoneColaboradora||"").replace(/\D/g,"");
+  return "https://wa.me/"+tel+"?text="+encodeURIComponent(txt);
+}
+function textoPagamento(key){
+  const r = resumoMes(STATE, key);
+  const p = r.pagamento || {};
+  const dias = r.regs.map(x => `• ${fmtDateShort(x.data)}: ${fmtH(x.horas)}`).join("\n");
+  const desp = r.despesas.map(d => `• ${esc0(d.descricao)}: ${fmtEur(d.valor)}`).join("\n");
+  return `Olá ${CONFIG.nomeColaboradora} 😊
+
+Já fiz a transferência referente a ${monthLabel(key)}.
+
+${dias}
+Total: ${fmtH(p.horas ?? r.horas)}${r.despesas.length ? `
+
+Despesas extra:
+${desp}` : ""}
+
+💶 Valor transferido: ${fmtEur(p.valor ?? r.valor)}
+
+Envio a seguir o comprovativo.
+Obrigado!${ADMIN_NOME ? "\n"+ADMIN_NOME : ""}`;
+}
+const esc0 = t => String(t ?? "");
+function textoResumo(key){
+  const r = resumoMes(STATE, key);
+  const linhas = r.regs.map(x => `• ${fmtDateShort(x.data)} (${dowOf(x.data).replace("-feira","")}): ${fmtH(x.horas)}`).join("\n");
+  return `🧹 Horas de ${CONFIG.nomeColaboradora} — ${monthLabel(key)}
+
+${linhas || "Sem registos."}
+${r.despesas.length ? "\nDespesas extra:\n"+r.despesas.map(d => `• ${d.descricao}: ${fmtEur(d.valor)}`).join("\n")+"\n" : ""}
+Total: ${fmtH(r.horas)}
+Valor: ${fmtEur(r.pago ? r.pagamento.valor : r.valor)}
+Estado: ${r.pago ? "Pago a "+fmtDate(r.pagamento.data) : "Por pagar"}`;
+}
+
+/* =========================================================
+   AÇÕES
+   ========================================================= */
+document.addEventListener("click", async e => {
+  const el = e.target.closest("[data-act]"); if(!el || !ROLE) return;
+  const act = el.dataset.act;
+  switch(act){
+    case "logout": logout(); break;
+    case "refresh": await refresh(true); break;
+
+    /* --- Laura --- */
+    case "horas": {
+      const v = Math.max(0, Math.min(12, ui.form.horas + Number(el.dataset.d)));
+      ui.form.horas = v; render(); break;
+    }
+    case "editar-laura": {
+      ui.form = syncFormWithDate({ data: el.dataset.data, horas: 0, obs: "" });
+      render(); window.scrollTo({top: document.getElementById("l-data").getBoundingClientRect().top + scrollY - 80, behavior:"smooth"}); break;
+    }
+    case "guardar-laura": {
+      const f = ui.form;
+      if(!f.data || f.horas <= 0) return;
+      const ok = await mutate(s => {
+        if(s.pagamentos[monthOf(f.data)]?.pago) return false;
+        const ex = s.registos.find(r => r.data === f.data);
+        const now = new Date().toISOString();
+        if(ex){ if((ex.obs||"") !== f.obs.trim()) ex.obsVista = false; ex.horas = f.horas; ex.obs = f.obs.trim(); ex.atualizadoEm = now; ex.atualizadoPor = "laura"; }
+        else s.registos.push({ id: uid(), data: f.data, horas: f.horas, obs: f.obs.trim(), criadoPor: "laura", criadoEm: now });
+      }, "Guardado! Obrigado 🙂");
+      if(ok){ ui.form = syncFormWithDate({ data: f.data, horas: f.horas, obs: f.obs.trim() }); render(); }
+      break;
+    }
+    case "ler": {
+      const id = el.dataset.id;
+      await mutate(s => { const n = s.notas.find(x => x.id === id); if(!n) return false; n.lida = true; n.lidaEm = new Date().toISOString(); });
+      break;
+    }
+
+    case "despesa-toggle": ui.showDespesa = !ui.showDespesa; if(ui.showDespesa) ui.despesa = { descricao:"", valor:"", data: today() }; render(); break;
+    case "despesa-add": {
+      const d = { descricao: document.getElementById("d-desc").value.trim(), valor: round2(parseFloat(String(document.getElementById("d-valor").value).replace(",","."))), data: document.getElementById("d-data").value };
+      if(!d.descricao || !(d.valor > 0) || !d.data){ toast("Indica o que foi, o valor e o dia.", true); return; }
+      const ok = await mutate(s => {
+        if(s.pagamentos[monthOf(d.data)]?.pago){ toast("Esse mês já foi pago.", true); return false; }
+        s.despesas.push({ id: uid(), ...d, criadoPor: ROLE, criadoEm: new Date().toISOString(), vista: ROLE === "admin" });
+      }, "Despesa registada.");
+      if(ok){ ui.showDespesa = false; render(); }
+      break;
+    }
+    case "despesa-del": {
+      const d = STATE.despesas.find(x => x.id === el.dataset.id); if(!d) return;
+      if(!confirm(`Apagar a despesa "${d.descricao}" (${fmtEur(d.valor)})?`)) return;
+      await mutate(s => { s.despesas = s.despesas.filter(x => x.id !== d.id); }, "Despesa apagada.");
+      break;
+    }
+
+    /* --- Admin --- */
+    case "visto": {
+      const { tipo, id } = el.dataset;
+      await mutate(s => {
+        if(tipo === "obs"){ const x = s.registos.find(r => r.id === id); if(x) x.obsVista = true; }
+        else { const x = s.despesas.find(r => r.id === id); if(x) x.vista = true; }
+      });
+      break;
+    }
+    case "mes": ui.mes = shiftMonth(ui.mes, Number(el.dataset.d)); ui.adminForm = null; render(); break;
+    case "ir-mes": ui.mes = el.dataset.mes; ui.adminForm = null; render(); window.scrollTo({top:0, behavior:"smooth"}); break;
+    case "reg-editar": {
+      const x = STATE.registos.find(r => r.id === el.dataset.id); if(!x) return;
+      ui.adminForm = { id: x.id, data: x.data, horas: x.horas, obs: x.obs || "" }; render();
+      document.getElementById("a-data").scrollIntoView({behavior:"smooth", block:"center"}); break;
+    }
+    case "reg-cancelar": ui.adminForm = null; render(); break;
+    case "reg-guardar": {
+      const data = document.getElementById("a-data").value;
+      const horas = round2(parseFloat(document.getElementById("a-horas").value));
+      const obs = document.getElementById("a-obs").value.trim();
+      const id = ui.adminForm && ui.adminForm.id;
+      if(!data || !(horas > 0)){ toast("Indica o dia e as horas.", true); return; }
+      const ok = await mutate(s => {
+        const now = new Date().toISOString();
+        const clash = s.registos.find(r => r.data === data && r.id !== id);
+        if(clash){ toast("Já existe um registo nesse dia — edita esse.", true); return false; }
+        if(id){ const x = s.registos.find(r => r.id === id); if(!x) return false; Object.assign(x, { data, horas, obs, atualizadoEm: now, atualizadoPor: ADMIN_NOME || "admin" }); }
+        else s.registos.push({ id: uid(), data, horas, obs, obsVista: true, criadoPor: "admin", autor: ADMIN_NOME, criadoEm: now });
+      }, id ? "Registo atualizado." : "Registo adicionado.");
+      if(ok){ ui.adminForm = null; ui.mes = monthOf(data); render(); }
+      break;
+    }
+    case "reg-apagar": {
+      const x = STATE.registos.find(r => r.id === el.dataset.id); if(!x) return;
+      if(!confirm(`Apagar o registo de ${fmtDate(x.data)} (${fmtH(x.horas)})?`)) return;
+      await mutate(s => { s.registos = s.registos.filter(r => r.id !== x.id); }, "Registo apagado.");
+      break;
+    }
+    case "marcar-pago": {
+      const r = resumoMes(STATE, ui.mes);
+      if(!confirm(`Marcar ${monthLabel(ui.mes)} como pago (${fmtEur(r.valor)} · ${fmtH(r.horas)})?`)) return;
+      const key = ui.mes;
+      await mutate(s => { const x = resumoMes(s, key); s.pagamentos[key] = { pago: true, data: today(), valor: x.valor, horas: x.horas, despesas: x.totalDespesas, por: ADMIN_NOME }; }, "Mês marcado como pago.");
+      break;
+    }
+    case "desmarcar-pago": {
+      if(!confirm(`Anular o pagamento de ${monthLabel(ui.mes)}?`)) return;
+      const key = ui.mes;
+      await mutate(s => { delete s.pagamentos[key]; }, "Pagamento anulado.");
+      break;
+    }
+    case "copiar-resumo": {
+      try{ await navigator.clipboard.writeText(textoResumo(ui.mes)); toast("Resumo copiado."); }
+      catch(err){ prompt("Copia o texto:", textoResumo(ui.mes)); }
+      break;
+    }
+    case "imprimir": window.print(); break;
+    case "nota-add": {
+      const tipo = document.getElementById("n-tipo").value;
+      const texto = document.getElementById("n-txt").value.trim();
+      if(!texto){ toast("Escreve o texto da nota.", true); return; }
+      await mutate(s => { s.notas.push({ id: uid(), tipo, texto, autor: ADMIN_NOME, criadaEm: new Date().toISOString(), lida: false, lidaEm: null }); }, "Nota adicionada.");
+      break;
+    }
+    case "nota-editar": ui.editNotaId = el.dataset.id; render(); break;
+    case "nota-cancelar": ui.editNotaId = null; render(); break;
+    case "nota-guardar": {
+      const id = el.dataset.id; const texto = document.getElementById("edit-nota-txt").value.trim();
+      if(!texto) return;
+      const ok = await mutate(s => { const n = s.notas.find(x => x.id === id); if(!n) return false; if(n.texto !== texto){ n.texto = texto; n.lida = false; n.lidaEm = null; } }, "Nota atualizada.");
+      if(ok){ ui.editNotaId = null; render(); }
+      break;
+    }
+    case "nota-apagar": {
+      if(!confirm("Apagar esta nota?")) return;
+      const id = el.dataset.id;
+      await mutate(s => { s.notas = s.notas.filter(n => n.id !== id); }, "Nota apagada.");
+      break;
+    }
+    case "rate-add": {
+      const valor = round2(parseFloat(document.getElementById("r-valor").value));
+      const desde = document.getElementById("r-desde").value;
+      if(!(valor > 0) || !desde){ toast("Indica o valor e a data.", true); return; }
+      const ok = await mutate(s => {
+        if(!s.rates.length){ s.rates.push({ desde: "2000-01-01", valor }); return; } // primeiro valor aplica-se a tudo
+        s.rates = s.rates.filter(r => r.desde !== desde);
+        s.rates.push({ desde, valor });
+      }, "Valor-hora guardado.");
+      if(ok){ ui.rateForm = null; render(); }
+      break;
+    }
+    case "rate-del": {
+      if(!confirm("Apagar este valor-hora do histórico?")) return;
+      const d = el.dataset.desde;
+      await mutate(s => { if(s.rates.length <= 1) return false; s.rates = s.rates.filter(r => r.desde !== d); }, "Valor apagado.");
+      break;
+    }
+    case "excel": exportExcel(); break;
+  }
+});
+
+document.addEventListener("input", e => {
+  if(!ROLE) return;
+  const id = e.target.id;
+  if(id === "l-obs" && ui.form) ui.form.obs = e.target.value;
+  if(id === "d-desc") ui.despesa.descricao = e.target.value;
+  if(id === "d-valor") ui.despesa.valor = e.target.value;
+  if(id === "d-data") ui.despesa.data = e.target.value;
+  if(id === "r-valor" || id === "r-desde"){
+    ui.rateForm = { valor: document.getElementById("r-valor").value, desde: document.getElementById("r-desde").value };
+  }
+  if(id === "a-data" || id === "a-horas" || id === "a-obs"){
+    ui.adminForm = Object.assign(ui.adminForm || { id: null }, {
+      data: document.getElementById("a-data").value,
+      horas: document.getElementById("a-horas").value,
+      obs: document.getElementById("a-obs").value
+    });
+  }
+});
+document.addEventListener("change", e => {
+  if(e.target.id === "l-data" && ui.form){
+    const v = e.target.value; if(!v) return;
+    ui.form = syncFormWithDate({ data: v, horas: ui.form.horas, obs: "" });
+    render();
+  }
+});
+
+function exportExcel(){
+  if(typeof XLSX === "undefined"){ toast("Biblioteca Excel não carregou. Verifica a ligação.", true); return; }
+  const wb = XLSX.utils.book_new();
+  const regs = [["Data","Dia","Horas","€/hora","Valor","Observações","Registado por"]];
+  [...STATE.registos].sort((a,b)=> a.data.localeCompare(b.data)).forEach(x => {
+    const rt = rateFor(STATE, x.data);
+    regs.push([fmtDate(x.data), dowOf(x.data), Number(x.horas), rt, rt != null ? round2(rt*x.horas) : null, x.obs || "", x.criadoPor === "admin" ? (x.autor || "Admin") : CONFIG.nomeColaboradora]);
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(regs), "Registos");
+  const desp = [["Data","Descrição","Valor"]];
+  [...STATE.despesas].sort((a,b)=> a.data.localeCompare(b.data)).forEach(d => desp.push([fmtDate(d.data), d.descricao, Number(d.valor)]));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(desp), "Despesas");
+  const meses = [["Mês","Horas","Valor horas","Despesas","Total","Estado","Data do pagamento"]];
+  mesesComDados(STATE).reverse().forEach(k => {
+    const x = resumoMes(STATE,k);
+    meses.push([monthLabel(k), x.horas, x.valorHoras, x.totalDespesas, x.pago ? x.pagamento.valor : x.valor, x.pago ? "Pago" : "Por pagar", x.pago ? fmtDate(x.pagamento.data) : ""]);
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(meses), "Resumo mensal");
+  const rates = [["Desde","€/hora"]];
+  sortedRates(STATE).forEach(r => rates.push([r.desde === "2000-01-01" ? "início" : fmtDate(r.desde), r.valor]));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rates), "Valor-hora");
+  XLSX.writeFile(wb, "Registo_horas_"+CONFIG.nomeColaboradora+"_"+today()+".xlsx");
+}
+
+/* =========================================================
+   ARRANQUE
+   ========================================================= */
+let toastTimer;
+function toast(msg, err){
+  document.querySelectorAll(".toast").forEach(t => t.remove());
+  const t = document.createElement("div"); t.className = "toast"+(err?" err":""); t.textContent = msg;
+  t.setAttribute("role","status"); document.body.appendChild(t);
+  clearTimeout(toastTimer); toastTimer = setTimeout(()=> t.remove(), err ? 4500 : 2200);
+}
+function setBusy(b){ document.getElementById("busy").hidden = !b; }
+
+async function refresh(showToast){
+  setBusy(true);
+  try{
+    STATE = await Store.load();
+    if(ui.form) ui.form = syncFormWithDate(ui.form);
+    if(showToast) toast("Dados atualizados.");
+  }catch(e){
+    console.error(e);
+    toast("Não foi possível carregar os dados. Verifica a ligação.", true);
+  }finally{
+    setBusy(false); render();
+  }
+}
+/* Ao voltar à app (ex.: telemóvel desbloqueado), atualiza os dados */
+document.addEventListener("visibilitychange", () => { if(document.visibilityState === "visible" && ROLE) refresh(); });
+
+(async function boot(){
+  ROLE = loadSession();
+  if(ROLE) await refresh(); else render();
+})();
+</script>
+</body>
+</html>
